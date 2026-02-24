@@ -744,11 +744,11 @@ class AGManagerUI:
             "务必添加两条规则：\n"
             "   A. 主程序路径 (App)\n"
             "   B. 插件路径 (.../extensions/*)\n\n"
-            "💡关于原始实例 (Original App):\n"
-            "如果你想代理【原始未隔离】的 Antigravity，规则通常是：\n"
-            "   A. /Applications/Antigravity.app\n"
-            "   B. ~/.antigravity/extensions/*\n"
-            "   (建议尽量使用本工具创建隔离分身，管理更方便)\n"
+            "💡 关于更新与同步内核:\n"
+            "因为修改了签名，隔离版 App 将无法【自动更新】。\n"
+            "   (1) 更新方法：先在系统正常下载安装新版 Antigravity.app\n"
+            "   (2) 然后在管理器选中旧实例，点击底部的【♻️ 同步内核】\n"
+            "   (3) 它会将新版核心安全覆盖过来，同时完整保留该实例所有的本地 Cookie 和登录数据。\n"
         )
         
         text_area = tk.Text(win, wrap=tk.WORD, font=("Arial", 11), padx=10, pady=10, bg=BG_DARK, fg=FG_LIGHT, selectbackground="#555555", relief=tk.FLAT)
