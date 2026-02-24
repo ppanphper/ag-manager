@@ -488,7 +488,7 @@ class SettingsDialog:
         
         btn_frame = tk.Frame(self.top, pady=20)
         btn_frame.pack(fill=tk.X)
-        tk.Button(btn_frame, text="保存并关闭", command=self.top.destroy, bg="#4CAF50", width=15).pack()
+        tk.Button(btn_frame, text="保存并关闭", command=self.top.destroy, width=15).pack()
 
     def create_path_entry(self, label, key, is_app_bundle):
         frame = tk.Frame(self.top, pady=10, padx=10)
@@ -573,7 +573,7 @@ class InstanceEditorDialog:
 
         btn_frame = tk.Frame(self.top, pady=20)
         btn_frame.pack(fill=tk.X)
-        tk.Button(btn_frame, text="确定", command=self.on_ok, bg="#2196F3", fg="white", width=10).pack(pady=10)
+        tk.Button(btn_frame, text="确定", command=self.on_ok, width=10).pack(pady=10)
         
         # Modal
         self.top.transient(parent)
@@ -622,7 +622,7 @@ class AGManagerUI:
         toolbar = tk.Frame(self.root, pady=10)
         toolbar.pack(fill=tk.X, padx=10)
         
-        tk.Button(toolbar, text="➕ 新建实例", command=self.add_instance, bg="#2196F3", font=("Arial", 12, "bold")).pack(side=tk.LEFT)
+        tk.Button(toolbar, text="➕ 新建实例", command=self.add_instance, font=("Arial", 12, "bold")).pack(side=tk.LEFT)
         
         # 设置按钮
         tk.Button(toolbar, text="⚙️ 设置路径", command=lambda: SettingsDialog(self.root, self.cfg)).pack(side=tk.RIGHT)
@@ -653,13 +653,13 @@ class AGManagerUI:
         # Define BG_DARK for consistency with instruction's button styles
         BG_DARK = "#2b2b2b" 
 
-        tk.Button(self.action_frame, text="🚀 启动", command=self.launch_current, bg="#4CAF50", fg="white", font=("Arial", 12, "bold"), width=10).pack(side=tk.LEFT, padx=5)
-        tk.Button(self.action_frame, text="📡 代理规则", command=self.view_rules, bg="#2196F3", fg="white", font=("Arial", 12), width=10).pack(side=tk.LEFT, padx=5)
-        tk.Button(self.action_frame, text="♻️ 同步内核", command=self.sync_kernel_ui, bg="#FF9800", fg="white", font=("Arial", 12), width=10).pack(side=tk.LEFT, padx=5)
+        tk.Button(self.action_frame, text="🚀 启动", command=self.launch_current, font=("Arial", 12, "bold"), width=10).pack(side=tk.LEFT, padx=5)
+        tk.Button(self.action_frame, text="📡 代理规则", command=self.view_rules, font=("Arial", 12), width=10).pack(side=tk.LEFT, padx=5)
+        tk.Button(self.action_frame, text="♻️ 同步内核", command=self.sync_kernel_ui, font=("Arial", 12), width=10).pack(side=tk.LEFT, padx=5)
         # Spacer
         tk.Label(self.action_frame, text="", bg=BG_DARK, width=2).pack(side=tk.LEFT)
-        tk.Button(self.action_frame, text="🗑️ 删除", command=self.delete_current, bg="#f44336", fg="white", font=("Arial", 12), width=8).pack(side=tk.RIGHT, padx=5)
-        tk.Button(self.action_frame, text="⚙️ 设置", command=self.edit_instance, bg="#555555", fg="white", font=("Arial", 12), width=8).pack(side=tk.RIGHT, padx=5)
+        tk.Button(self.action_frame, text="🗑️ 删除", command=self.delete_current, font=("Arial", 12), width=8).pack(side=tk.RIGHT, padx=5)
+        tk.Button(self.action_frame, text="⚙️ 设置", command=self.edit_instance, font=("Arial", 12), width=8).pack(side=tk.RIGHT, padx=5)
         
         # 底部状态栏显示当前存储路径
         self.status_var = tk.StringVar()
@@ -901,7 +901,19 @@ class AGManagerUI:
         except Exception as e:
             messagebox.showerror("启动失败", str(e))
 
-            messagebox.showerror("启动失败", str(e))
+    def sync_kernel_ui(self):
+        sel = self.tree.selection()
+        if not sel:
+            messagebox.showwarning("提示", "请先选择一个实例")
+            return
+        name = sel[0]
+        if messagebox.askyesno("同步内核", f"确定要同步【{name}】的内核吗？\n这会将原始 App 的代码覆盖到此实例，您的配置和数据会被保留。"):
+            try:
+                self.mgr.sync_kernel(name)
+                self.refresh_list()
+                messagebox.showinfo("成功", f"实例【{name}】内核同步完成！")
+            except Exception as e:
+                messagebox.showerror("同步失败", str(e))
 
     def edit_instance(self):
         sel = self.tree.selection()
