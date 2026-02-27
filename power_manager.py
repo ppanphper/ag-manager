@@ -3,6 +3,7 @@ import re
 import shutil
 import json
 import subprocess
+import threading
 
 
 class AppPowerManager:
@@ -10,6 +11,7 @@ class AppPowerManager:
 
     def __init__(self, config_mgr):
         self.cfg = config_mgr
+        self._running_procs = {}  # {实例名: Popen对象}
 
     def sanitize_filename(self, name):
         return re.sub(r'[^\w\-\.\u4e00-\u9fa5]', '_', name).strip()
@@ -439,7 +441,12 @@ exec "$TARGET" "$@"
 
         self.clear_vscode_proxy_settings(user_data_dir)
 
-        subprocess.Popen(cmd, env=env, start_new_session=True, stdout=None, stderr=None)
+        proc = subprocess.Popen(cmd, env=env, start_new_session=True, stdout=None, stderr=None)
+        self._running_procs[name] = proc
+
+        # 启动守护线程：主进程退出后自动清理残留子进程
+        t = threading.Thread(target=self._watchdog, args=(name, proc), daemon=True)
+        t.start()
 
     def clear_vscode_proxy_settings(self, user_data_dir):
         """清除 VS Code 旧版残留的代理配置避免引发 Electron 协议解析异常"""
@@ -489,6 +496,32 @@ exec "$TARGET" "$@"
             deleted_data = True
 
         return deleted_app, deleted_data
+
+    def _watchdog(self, name, proc):
+        """
+        守护线程：等待 Electron 主进程退出后，自动清理所有残留子进程。
+        解决 IDE 关闭后 language_server、crashpad_handler 等进程残留的问题。
+        """
+        try:
+            proc.wait()  # 阻塞直到主进程退出
+            print(f"[Watchdog] 实例 [{name}] 主进程已退出 (PID={proc.pid}, code={proc.returncode})，开始清理残留进程...")
+            import time
+            time.sleep(1)  # 等待子进程自然退出
+            self.force_quit(name)
+            print(f"[Watchdog] 实例 [{name}] 清理完成。")
+        except Exception as e:
+            print(f"[Watchdog] 实例 [{name}] 清理异常: {e}")
+        finally:
+            self._running_procs.pop(name, None)
+
+    def cleanup_all(self):
+        """清理所有已跟踪实例的残留进程（AG Manager 退出时调用）"""
+        for name in list(self._running_procs.keys()):
+            try:
+                self.force_quit(name)
+            except Exception as e:
+                print(f"cleanup_all: 清理 [{name}] 失败: {e}")
+        self._running_procs.clear()
 
     def force_quit(self, name):
         """
