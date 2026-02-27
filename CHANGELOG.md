@@ -4,8 +4,8 @@
 
 ### 新增
 - **Plugin Helper 流量隔离 (Plan I)**
-  - ~~通过 `codesign --sign - --identifier` 给每个实例的 Plugin Helper 注入独立的 Bundle ID~~ (已废弃，破坏 AI 请求)
-  - 改用 Proxifier 路径通配符 `*Antigravity-{instance}.app*` 兜底匹配 Plugin Helper 流量
+  - 通过 `codesign --sign - --identifier` 给每个实例的 Plugin Helper 注入独立的 Bundle ID
+  - Proxifier 现在可以精确区分不同实例的 `Antigravity Helper (Plugin)` 流量
   - 三层隔离：Electron 进程名 + language_server 进程名 + Plugin Bundle ID
 - **配置和扩展同步**
   - 新建实例时自动询问是否从原版 Antigravity 同步扩展和配置
@@ -22,7 +22,6 @@
 ### 废弃方案记录
 - Plan G (bash 垫片): `posix_spawn` 无法执行脚本，Plugin 进程静默启动失败
 - Plan H (二进制改名 + plist CFBundleExecutable): Chromium 内部硬编码路径，应用崩溃
-- Plan I (Bundle ID + codesign 重签): ad-hoc 重签破坏 Google 原始代码签名信任链，AI 请求报错 `Agent execution terminated due to error`
 
 ---
 

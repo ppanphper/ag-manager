@@ -9,12 +9,12 @@ AGM 是一个开源的 Python 工具，通过独特的 **Process Shim (进程垫
 - **🛡️ 三层流量隔离**:
     - 主程序垫片: `Electron` → `Electron_{InstanceName}`
     - 语言服务器垫片: `language_server` → `language_server_..._{InstanceName}`
-    - Plugin Helper 兜底: 路径通配符 `*Antigravity-{InstanceName}.app*`
-    - **效果**: Proxifier 可通过进程名 + 路径通配符精准匹配每个实例的全部网络流量。
+    - Plugin Helper 重签: Bundle ID `com.google.antigravity.helper` → `com.google.antigravity.helper.{InstanceName}`
+    - **效果**: Proxifier 可通过进程名 + Bundle ID 精准匹配每个实例的全部网络流量。
 
 - **📡 一键分流规则**:
     - 点击「代理规则」按钮，一键复制包含进程名和 Bundle ID 的完整 Proxifier 规则。
-    - 三条规则覆盖实例的所有网络进程：Electron、language_server、Plugin Helper（路径通配符）。
+    - 三条规则覆盖实例的所有网络进程：Electron、language_server、Plugin Helper。
 
 - **📋 配置与扩展同步**:
     - 新建实例时自动询问是否从原版 Antigravity 同步扩展和配置。
@@ -94,7 +94,7 @@ ag-manager/
 AGM 使用 APFS clone 克隆 App Bundle，通过三层技术实现进程隔离：
 
 1. **Shell Shim**: 用脚本替换 `Electron` 和 `language_server` 二进制，运行时动态复制为带实例名的副本并执行。
-2. **Bundle ID 兜底**: Plugin Helper 不修改二进制签名（修改会破坏 AI 请求），改用 Proxifier 路径通配符 `*Antigravity-{instance}.app*` 匹配该实例下所有未被前两条规则覆盖的进程。
+2. **Bundle ID 重签**: 通过 `codesign --sign - --identifier` 给 Plugin Helper 注入包含实例名的自定义标识符（ad-hoc 签名），使 Proxifier 能通过 macOS 内核级的代码签名 Identifier 精确区分不同实例的 Plugin 流量。
 3. **环境变量注入**: 直接执行 Electron 二进制（而非 `open -n -a`），确保 `AG_INSTANCE_NAME` 等环境变量正确传播到所有子进程。
 
 ## 📄 License
