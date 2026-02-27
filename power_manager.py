@@ -159,79 +159,11 @@ exec "$TARGET" "$@"
         except Exception as e:
             print(f"Failed to install Electron shim: {e}")
 
-    # [废弃] install_plugin_helper_shim:
-    # Plan G (bash 垫片) → posix_spawn 无法执行脚本，Plugin 进程静默启动失败
-    # Plan H (二进制改名 + plist) → Chromium 内部对 Helper 名有编译期硬编码，整个应用崩溃
-    # 结论：Plugin Helper 进程名无法通过用户态手段修改。
-    # 替代方案：依靠 Proxifier 路径通配符 *Antigravity-{instance}.app* 兜底分流。
-
-    def patch_plugin_helper_bundle_id(self, name):
-        """
-        [Plan I: Bundle ID Patch]
-        仅修改 Plugin Helper 的 CFBundleIdentifier，不动任何二进制文件。
-        
-        原理：
-        Proxifier 在 macOS 上通过 Bundle ID 来识别进程（日志中显示为
-        Antigravity Helper (Plugin)(com.google.antigravity.helper)）。
-        通过给每个实例的 Plugin Helper 赋予独立的 Bundle ID，
-        Proxifier 就能区分不同实例的 Plugin 流量并分别路由。
-        
-        风险评估：极低
-        - CFBundleIdentifier 不影响 Chromium 查找/启动 Helper 二进制的逻辑
-        - 二进制文件名和路径完全不变
-        - 最坏结果：Proxifier 不通过 Bundle ID 匹配，方案无效但应用不崩溃
-        """
-        import plistlib
-        
-        safe_name = self.sanitize_filename(name)
-        app_path = self.get_app_path(name)
-        
-        # 仅修改 Plugin Helper 的 Bundle ID（其他 Helper 的网络请求由 Chromium 内部路由）
-        helpers = [
-            "Antigravity Helper (Plugin).app",
-        ]
-        
-        for helper_name in helpers:
-            plist_path = os.path.join(app_path, "Contents/Frameworks", helper_name, "Contents/Info.plist")
-            if not os.path.exists(plist_path):
-                continue
-            
-            try:
-                with open(plist_path, 'rb') as f:
-                    plist_data = plistlib.load(f)
-                
-                old_id = plist_data.get("CFBundleIdentifier", "")
-                # 避免重复追加后缀
-                if old_id.endswith(f".{safe_name}"):
-                    continue
-                    
-                new_id = f"{old_id}.{safe_name}"
-                plist_data["CFBundleIdentifier"] = new_id
-                
-                with open(plist_path, 'wb') as f:
-                    plistlib.dump(plist_data, f)
-                
-                print(f"Patched {helper_name}: BundleID '{old_id}' -> '{new_id}'")
-                
-                # 关键：Proxifier 通过 macOS 内核的代码签名 Identifier 识别进程。
-                # 单纯剥离签名无效（系统可能回退到文件名推导）。
-                # 正确做法：用 ad-hoc 签名重签，注入自定义 identifier 到 LC_CODE_SIGNATURE。
-                helper_app_path = os.path.join(app_path, "Contents/Frameworks", helper_name)
-                binary_path = os.path.join(helper_app_path, "Contents/MacOS", helper_name[:-4])
-                
-                if os.path.exists(binary_path):
-                    # ad-hoc 重签二进制，注入新 identifier
-                    result = subprocess.run(
-                        ["codesign", "--sign", "-", "--force", "--identifier", new_id, binary_path],
-                        capture_output=True, text=True
-                    )
-                    if result.returncode == 0:
-                        print(f"  Re-signed binary with identifier: {new_id}")
-                    else:
-                        print(f"  Warning: codesign failed: {result.stderr.strip()}")
-                
-            except Exception as e:
-                print(f"Warning: Failed to patch {helper_name} BundleID: {e}")
+    # [废弃方案记录]
+    # Plan G (bash 垫片): posix_spawn 无法执行脚本，Plugin 进程静默启动失败
+    # Plan H (二进制改名 + plist): Chromium 内部硬编码路径，应用崩溃
+    # Plan I (Bundle ID + codesign 重签): ad-hoc 重签破坏 Google 原始签名信任链，AI 请求被拒绝
+    # 最终方案：Plugin Helper 不做任何修改，依靠 Proxifier 路径通配符 *Antigravity-{instance}.app* 兜底分流
 
     def get_default_data_paths(self):
         """
@@ -367,7 +299,6 @@ exec "$TARGET" "$@"
         print("Re-applying isolation shims...")
         self.install_process_shim(name)
         self.install_electron_shim(name)
-        self.patch_plugin_helper_bundle_id(name)
 
         print(f"Kernel sync completed for {name}")
 
@@ -383,7 +314,6 @@ exec "$TARGET" "$@"
 
         self.install_process_shim(name)
         self.install_electron_shim(name)
-        self.patch_plugin_helper_bundle_id(name)
 
 
         for p in [user_data_dir, extensions_dir]:

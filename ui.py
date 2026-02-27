@@ -207,7 +207,7 @@ class AGManagerUI:
             "每个实例会生成三条规则：\n"
             "   A. 主进程名 (Electron_{name})\n"
             "   B. 语言服务器名 (language_server_macos_arm_{name})\n"
-            "   C. 插件宿主 Bundle ID (com.google.antigravity.helper.{name})\n\n"
+            "   C. 插件宿主路径通配符 (*Antigravity-{name}.app*)\n\n"
             "💡 关于更新与同步内核:\n"
             "因为修改了签名，隔离版 App 将无法【自动更新】。\n"
             "   (1) 更新方法：先在系统正常下载安装新版 Antigravity.app\n"
@@ -268,14 +268,14 @@ class AGManagerUI:
         elec_rule = f'"Electron_{safe_name}"'
         ls_rule = f'"language_server_macos_arm_{safe_name}"'
 
-        # Plugin Helper Bundle ID 规则（通过 ad-hoc 重签注入自定义 identifier）
-        plugin_bundle_id = f'"com.google.antigravity.helper.{safe_name}"'
+        # Plugin Helper 路径通配符规则（不修改二进制签名，保持 AI 请求正常）
+        plugin_path_rule = f'"*Antigravity-{safe_name}.app*"'
 
-        all_rules = [elec_rule, ls_rule, plugin_bundle_id]
+        all_rules = [elec_rule, ls_rule, plugin_path_rule]
         full_rule = "; ".join(all_rules)
 
         # 一键复制区
-        tk.Label(info_frame, text="✨ 一键配置 (进程名 + Bundle ID 精准分流)", font=("Arial", 12, "bold"),
+        tk.Label(info_frame, text="✨ 一键配置 (进程名 + 路径通配符精准分流)", font=("Arial", 12, "bold"),
                 fg=COLORS["select_bg"], bg=COLORS["root_bg"]).pack(anchor="w", pady=(5,5))
 
         all_frame = tk.Frame(info_frame, pady=5, bg=COLORS["root_bg"])
@@ -289,7 +289,7 @@ class AGManagerUI:
         tk.Button(all_frame, text="复制完整规则", command=lambda: self.copy_to_clip(full_rule),
                  bg=COLORS["btn_bg"], fg=COLORS["btn_fg"], highlightbackground=COLORS["root_bg"]).pack(side=tk.RIGHT)
 
-        tk.Label(info_frame, text="👆 将上方内容粘贴到 Proxifier 规则的 Applications 字段。\n前两项按进程名匹配主程序和语言服务器；第三项按 Bundle ID 匹配 Plugin Helper（扩展宿主进程）。",
+        tk.Label(info_frame, text="👆 将上方内容粘贴到 Proxifier 规则的 Applications 字段。\n前两项按进程名匹配主程序和语言服务器；第三项按路径通配符匹配 Plugin Helper（扩展宿主进程）。",
                  fg="gray", bg=COLORS["root_bg"], justify=tk.LEFT, wraplength=600).pack(anchor="w", pady=(0, 15))
 
         # 规则详情
@@ -302,8 +302,8 @@ class AGManagerUI:
         tk.Label(info_frame, text="语言服务器 (LS Shim):", fg="gray", bg=COLORS["root_bg"]).pack(anchor="w")
         self.create_copy_row(info_frame, ls_rule)
 
-        tk.Label(info_frame, text="插件宿主 (Plugin Helper, ad-hoc 重签 Bundle ID):", fg="gray", bg=COLORS["root_bg"]).pack(anchor="w")
-        self.create_copy_row(info_frame, plugin_bundle_id)
+        tk.Label(info_frame, text="插件宿主 (Plugin Helper, 路径通配符):", fg="gray", bg=COLORS["root_bg"]).pack(anchor="w")
+        self.create_copy_row(info_frame, plugin_path_rule)
 
         # 登录提示
         warning_frame = tk.LabelFrame(win, text="⚠️ 登录必读", padx=10, pady=5, bg=COLORS["root_bg"], fg=COLORS["fg"])
