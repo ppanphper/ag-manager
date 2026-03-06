@@ -38,7 +38,25 @@ rm -rf build/
 rm -rf AGManager.spec
 
 echo "✅ 编译完成！"
-echo "您的应用已生成在 dist/ 目录下："
-echo "👉 dist/AGManager.app"
-echo ""
-echo "双击即可运行！如果要安装到系统，可将其拖入 /Applications (应用程序) 文件夹中。"
+echo "📦 正在自动将应用安装到 /Applications (应用程序) 文件夹中..."
+
+APP_NAME="AGManager.app"
+TARGET_DIR="/Applications"
+
+# 如果应用程序文件夹已存在旧版，则先删除再覆盖
+if [ -d "${TARGET_DIR}/${APP_NAME}" ]; then
+    echo "⚠️ 发现已存在的旧版本，正在移除..."
+    rm -rf "${TARGET_DIR}/${APP_NAME}"
+fi
+
+# 尝试复制包到应用程序目录
+cp -R "dist/${APP_NAME}" "${TARGET_DIR}/"
+
+if [ $? -eq 0 ]; then
+    echo "✅ 安装成功！"
+    echo "🎉 您现在可以直接从 Launchpad (启动台) 或应用程序文件夹打开 AGManager 了！"
+else
+    echo "❌ 复制到系统目录失败，可能由于权限不足。"
+    echo "👉 您的应用已生成在 dist/ 目录下：dist/${APP_NAME}"
+    echo "您可以手动将该应用拖入 /Applications (应用程序) 文件夹中。"
+fi
