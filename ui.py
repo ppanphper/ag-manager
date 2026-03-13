@@ -121,6 +121,8 @@ class AGManagerUI:
                  style="Blue.TButton", width=10).pack(side=tk.LEFT, padx=5)
         ttk.Button(self.action_frame, text="♻️ 同步内核", command=self.sync_kernel_ui,
                  style="Orange.TButton", width=10).pack(side=tk.LEFT, padx=5)
+        ttk.Button(self.action_frame, text="🔑 同步登录", command=self.sync_login_ui,
+                 style="Blue.TButton", width=10).pack(side=tk.LEFT, padx=5)
 
         ttk.Label(self.action_frame, text="", width=2).pack(side=tk.LEFT)
         ttk.Button(self.action_frame, text="🗑️ 删除", command=self.delete_current,
@@ -286,8 +288,8 @@ class AGManagerUI:
         e_all.config(state="readonly")
         e_all.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
 
-        tk.Button(all_frame, text="复制完整规则", command=lambda: self.copy_to_clip(full_rule),
-                 bg=COLORS["btn_bg"], fg=COLORS["btn_fg"], highlightbackground=COLORS["root_bg"]).pack(side=tk.RIGHT)
+        ttk.Button(all_frame, text="复制完整规则", command=lambda: self.copy_to_clip(full_rule),
+                  style="TButton").pack(side=tk.RIGHT)
 
         tk.Label(info_frame, text="👆 将上方内容粘贴到 Proxifier 规则的 Applications 字段。\n前两项按进程名匹配主程序和语言服务器；第三项按 Bundle ID 匹配 Plugin Helper（扩展宿主进程）。",
                  fg="gray", bg=COLORS["root_bg"], justify=tk.LEFT, wraplength=600).pack(anchor="w", pady=(0, 15))
@@ -312,8 +314,8 @@ class AGManagerUI:
         tk.Label(warning_frame, text="因 macOS 机制限制，多实例同时运行时，登录回调可能会乱序。\n【初次登录时】请务必关闭所有其他 Antigravity 窗口，仅保留当前这一个。\n登录成功保存 Token 后，即可正常多开。",
                  justify=tk.LEFT, wraplength=500, bg=COLORS["root_bg"], fg=COLORS["fg"]).pack(anchor="w")
 
-        tk.Button(win, text="我已配置完成", command=win.destroy,
-                 bg="#4CAF50", fg="white", highlightbackground=COLORS["root_bg"], width=20).pack(side=tk.BOTTOM, pady=20)
+        ttk.Button(win, text="我已配置完成", command=win.destroy,
+                  style="Green.TButton", width=20).pack(side=tk.BOTTOM, pady=20)
 
     def create_copy_row(self, parent, text):
         row = tk.Frame(parent, bg=COLORS["root_bg"])
@@ -322,8 +324,8 @@ class AGManagerUI:
         e.insert(0, text)
         e.config(state="readonly")
         e.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        tk.Button(row, text="复制", command=lambda: self.copy_to_clip(text), width=4,
-                 bg=COLORS["btn_bg"], fg=COLORS["btn_fg"], highlightbackground=COLORS["root_bg"]).pack(side=tk.RIGHT, padx=5)
+        ttk.Button(row, text="复制", command=lambda: self.copy_to_clip(text), width=4,
+                  style="TButton").pack(side=tk.RIGHT, padx=5)
 
     def launch_current(self):
         sel = self.tree.selection()
@@ -402,6 +404,81 @@ class AGManagerUI:
                     messagebox.showinfo("成功", f"实例【{name}】内核同步完成！")
 
         self.root.after(300, check_progress)
+
+    def sync_login_ui(self):
+        """同步登录数据：从已登录的来源复制 Token 到目标实例"""
+        sel = self.tree.selection()
+        if not sel:
+            messagebox.showwarning("提示", "请先选择一个目标实例")
+            return
+        target_name = sel[0]
+
+        # 获取可用来源列表（排除自身）
+        sources = self.mgr.get_available_sources(exclude_name=target_name)
+        if len(sources) <= 1:
+            # 只有原版一个来源，检查原版是否有登录数据
+            paths = self.mgr.get_default_data_paths()
+            gs = os.path.join(paths["user_data"], "User", "globalStorage")
+            if not os.path.exists(gs):
+                messagebox.showwarning("无可用来源",
+                    "未找到任何已登录的来源。\n\n"
+                    "请先用原版 Antigravity 或任意已有实例登录账号，\n"
+                    "然后再使用此功能同步登录数据。")
+                return
+
+        # 弹出来源选择对话框
+        source_win = tk.Toplevel(self.root)
+        source_win.title("选择登录数据来源")
+        source_win.configure(bg=COLORS["root_bg"])
+        from theme import center_window as cw
+        cw(source_win, 400, 300)
+        source_win.transient(self.root)
+        source_win.grab_set()
+
+        tk.Label(source_win, text=f"将登录数据同步到【{target_name}】",
+                font=("Arial", 12, "bold"), bg=COLORS["root_bg"], fg=COLORS["fg"]).pack(pady=(15, 5))
+        tk.Label(source_win, text="选择一个已登录的来源：",
+                font=("Arial", 10), fg="gray", bg=COLORS["root_bg"]).pack(pady=(0, 10))
+
+        listbox = tk.Listbox(source_win, font=("Arial", 11),
+                            bg=COLORS["entry_bg"], fg=COLORS["entry_fg"],
+                            selectbackground=COLORS["select_bg"], height=8)
+        for label, _ in sources:
+            listbox.insert(tk.END, label)
+        listbox.selection_set(0)
+        listbox.pack(fill=tk.BOTH, expand=True, padx=20, pady=5)
+
+        result = {"confirmed": False, "index": 0}
+
+        def on_confirm():
+            sel_idx = listbox.curselection()
+            if not sel_idx:
+                return
+            result["confirmed"] = True
+            result["index"] = sel_idx[0]
+            source_win.destroy()
+
+        btn_frame = ttk.Frame(source_win)
+        btn_frame.pack(pady=10)
+        ttk.Button(btn_frame, text="确认同步", command=on_confirm,
+                  style="Green.TButton", width=12).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="取消", command=source_win.destroy,
+                  style="TButton", width=8).pack(side=tk.LEFT, padx=5)
+
+        source_win.wait_window()
+
+        if not result["confirmed"]:
+            return
+
+        _, source_name = sources[result["index"]]
+
+        try:
+            source_label = self.mgr.sync_login(target_name, source_name=source_name)
+            messagebox.showinfo("同步成功",
+                f"已将 {source_label} 的登录数据同步到【{target_name}】。\n\n"
+                f"现在可以直接启动该实例，无需重新登录。")
+        except Exception as e:
+            messagebox.showerror("同步失败", str(e))
 
     def edit_instance(self):
         sel = self.tree.selection()

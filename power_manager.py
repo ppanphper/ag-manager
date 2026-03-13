@@ -330,13 +330,63 @@ exec "$TARGET" "$@"
 
         return synced
 
-    def get_available_sources(self):
-        """获取可用的配置同步源列表（原版 + 已有实例）"""
+    def sync_login(self, target_name, source_name=None):
+        """
+        同步登录数据: 将源的 globalStorage 复制到目标实例。
+
+        解决 1.18.4+ 版本因签名破坏导致 OAuth 回调失败的问题。
+        用户在任意已登录的实例（或原版）中完成登录后，
+        通过此方法将 Token/Session 数据同步到目标实例。
+
+        source_name:
+            None = 原版 Antigravity（默认数据目录）
+            str  = 已有实例名称
+        """
+        # 确定源路径
+        if source_name is None:
+            paths = self.get_default_data_paths()
+            src_user_data = paths["user_data"]
+            source_label = "原版 Antigravity"
+        else:
+            src_base = self.get_data_path(source_name)
+            src_user_data = os.path.join(src_base, "user_data")
+            source_label = f"实例 [{source_name}]"
+
+        src_global_storage = os.path.join(src_user_data, "User", "globalStorage")
+
+        if not os.path.exists(src_global_storage):
+            raise FileNotFoundError(
+                f"未找到 {source_label} 的登录数据目录:\n"
+                f"{src_global_storage}\n\n"
+                f"请确认已在该来源中成功登录过账号。"
+            )
+
+        # 目标路径
+        tgt_base = self.get_data_path(target_name)
+        tgt_global_storage = os.path.join(tgt_base, "user_data", "User", "globalStorage")
+
+        os.makedirs(os.path.dirname(tgt_global_storage), exist_ok=True)
+
+        # 清除目标的旧登录数据后覆盖
+        if os.path.exists(tgt_global_storage):
+            shutil.rmtree(tgt_global_storage)
+
+        shutil.copytree(src_global_storage, tgt_global_storage, symlinks=True)
+
+        print(f"Synced login data from {source_label} to [{target_name}]")
+        return source_label
+
+    def get_available_sources(self, exclude_name=None):
+        """获取可用的登录数据同步源列表（原版 + 已有实例）"""
         sources = [("📦 原版 Antigravity (默认)", None)]
         for acc in self.cfg.get_accounts():
             name = acc["name"]
+            if name == exclude_name:
+                continue
             data_path = self.get_data_path(name)
-            if os.path.exists(os.path.join(data_path, "user_data")):
+            # 只有存在 globalStorage 的实例才算有效来源
+            gs_path = os.path.join(data_path, "user_data", "User", "globalStorage")
+            if os.path.exists(gs_path):
                 sources.append((f"🔄 实例: {name}", name))
         return sources
 
