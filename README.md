@@ -25,6 +25,11 @@ AGM 是一个开源的 Python 工具，通过独特的 **Process Shim (进程垫
     - 由于修改了签名，自动更新被禁用。
     - 提供「一键同步内核」功能：当 Antigravity 发布新版时，一键将新版核心同步到所有实例，同时保留用户数据。
 
+- **🔑 同步登录 (Sync Login)**:
+    - 解决 Antigravity **1.18.4+ 版本修改了 OAuth 回调验证逻辑**，导致典型 Shim 方案在新实例中无法正常完成登录回调的问题。
+    - 操作方式：用**任意已登录的来源**（原版 App 或已有实例）登录账号后，通过此功能将 Token （`globalStorage`）直接复制到目标实例，不依赖任何版本的 OAuth 回调机制。
+    - 任何 Antigravity 版本均可用。
+
 - **⏹ 强制退出**:
     - 一键强杀实例的所有进程（含 Helper 子进程），确保彻底退出。
 
@@ -66,9 +71,15 @@ python3 ag_manager.py
 由于修改了二进制签名（实现进程伪装），首次启动时 macOS 会弹出 **"Antigravity wants to access key..."**。
 - 请输入密码并点击 **[始终允许 (Always Allow)]**。
 
-### 登录冲突
-macOS 限制了同一 App ID 的并发登录回调。
-**初次登录新账号时**，请务必关闭其他所有 Antigravity 窗口，仅保留当前实例。登录成功后即可随意多开。
+### 登录新实例（1.18.4+ 推荐方式）
+Antigravity 1.18.4+ 版本修改了 OAuth 回调验证逻辑，导致 Shim 实例无法在新实例中直接完成登录。**推荐使用【🔑 同步登录】功能**：
+
+1. 用原版 Antigravity（或任意已登录的实例）登录目标账号。
+2. 回到 AGM 选中目标实例，点击 **🔑 同步登录**。
+3. 选择来源（原版 / 已登录实例），点击「确认同步」。
+4. 启动目标实例，无需重新登录，直接进入已登录状态。
+
+> **考古步骤**（1.18.4 以下版本仳用）: macOS 限制了同一 App ID 的并发登录回调。初次登录新账号时，请关闭其他所有 Antigravity 窗口，仅保留当前实例。
 
 ### 如何更新 Antigravity？
 1.  下载最新版 Antigravity，安装到 Applications。
@@ -86,6 +97,7 @@ ag-manager/
 ├── theme.py           # 主题样式
 ├── dialogs.py         # 对话框组件
 ├── CHANGELOG.md       # 版本更新日志
+├── DEVELOPMENT_NOTES.md # 开发注意事项与已知问题记录
 └── README.md
 ```
 
